@@ -27,7 +27,8 @@ public class DeliveryInfoServiceImpl extends ServiceImpl<DeliveryInfoMapper, Del
         deliveryInfoVO.setDeliveryDate(deliveryInfo.getDeliveryDate());
         deliveryInfoVO.setDeliveryAddress(deliveryInfo.getDeliveryAddress());
         deliveryInfoVO.setIsCompleted(deliveryInfo.getIsCompleted());
-
+        deliveryInfoVO.setDeliveryPerson(deliveryInfo.getDeliveryPerson());
+        deliveryInfoVO.setDescription(deliveryInfo.getDescription());
         return deliveryInfoVO;
     }
 }

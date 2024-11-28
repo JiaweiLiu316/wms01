@@ -22,6 +22,10 @@ public class DeliveryInfoVO {
     // 交收地址
     private String deliveryAddress;
 
+    private String deliveryPerson;
+//    备注
+    private String description;
+
     // 是否完成交收
     private Boolean isCompleted;
 }

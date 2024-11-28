@@ -9,6 +9,7 @@ import com.swiftsprinttech.wms01.service.*;
 import com.swiftsprinttech.wms01.utils.IdGenerator;
 import com.swiftsprinttech.wms01.utils.Result;
 import com.swiftsprinttech.wms01.utils.ResultUtil;
+import jakarta.websocket.server.PathParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,7 +90,13 @@ public class OrderController {
                 // 这里我们选择跳过设置，或者可以设置一个默认值
                 orderInfoVO.setCustomerInfoVO(new CustomerInfoVO());
             }
+            // 查询并设置交付信息
+            DeliveryInfoVO deliveryInfoVO = deliveryInfoService.getDeliveryInfoById(orderInfo.getDeliveryId());
+            orderInfoVO.setDeliveryInfoVO(deliveryInfoVO);
 
+            // 查询并设置付款信息
+            PaymentInfoVO paymentInfoVO = paymentInfoService.getPaymentInfoById(orderInfo.getPaymentId());
+            orderInfoVO.setPaymentInfoVO(paymentInfoVO);
             // 处理其他信息（交付、付款、订单项等）
             List<OrderItemVO> orderItemVOList = orderItemService.getOrderItemsByOrderId(orderInfo.getId()).stream().map(orderItem -> {
                 OrderItemVO orderItemVO = new OrderItemVO();
@@ -228,6 +235,8 @@ public class OrderController {
         deliveryInfo.setDeliveryMethod(orderInfoVO.getDeliveryInfoVO().getDeliveryMethod());
         deliveryInfo.setDeliveryAddress(orderInfoVO.getDeliveryInfoVO().getDeliveryAddress());
         deliveryInfo.setDeliveryDate(orderInfoVO.getDeliveryInfoVO().getDeliveryDate());
+        deliveryInfo.setDeliveryPerson(orderInfoVO.getDeliveryInfoVO().getDeliveryPerson());
+        deliveryInfo.setDescription(orderInfoVO.getDeliveryInfoVO().getDescription());
         deliveryInfo.setIsCompleted(orderInfoVO.getDeliveryInfoVO().getIsCompleted());
         deliveryInfoService.save(deliveryInfo);
 
@@ -257,8 +266,8 @@ public class OrderController {
      * @return: org.springframework.http.ResponseEntity<com.swiftsprinttech.wms01.utils.Result<com.swiftsprinttech.wms01.domain.entity.OrderInfoVO>>
      * @date: 2024/11/18 下午 4:15
      */
-    @GetMapping("/getOrderById")
-    public Result<OrderInfoVO> getOrderById(@RequestParam("orderId") String orderId) {
+    @GetMapping("/getOrderById/{orderId}")
+    public Result<OrderInfoVO> getOrderById(@PathVariable("orderId") String orderId) {
         if (orderId == null || orderId.isEmpty()) {
             return Result.error("订单ID不能为空！");
         }
@@ -328,6 +337,11 @@ public class OrderController {
             return Result.error("订单不存在！");
         }
         existingOrder.setShippingAddress(orderInfoVO.getDeliveryInfoVO().getDeliveryAddress());
+        if(orderInfoVO.getPaymentInfoVO().getIsCompleted() && orderInfoVO.getDeliveryInfoVO().getIsCompleted()){
+            orderInfoVO.setOrderStatus(true);
+        }else {
+            orderInfoVO.setOrderStatus(false);
+        }
         existingOrder.setStatus(orderInfoVO.getOrderStatus());
         // 获取用户ID
         String customerId = orderInfoVO.getCustomerInfoVO().getCustomerId();
@@ -340,6 +354,7 @@ public class OrderController {
             }
             existingCustomer.setName(orderInfoVO.getCustomerInfoVO().getCustomerName());
             existingCustomer.setPhoneNumber(orderInfoVO.getCustomerInfoVO().getPhoneNumber());
+            existingCustomer.setShippingAddress(orderInfoVO.getCustomerInfoVO().getShippingAddress());
             customerInfoService.updateById(existingCustomer);
         }
 
@@ -392,6 +407,8 @@ public class OrderController {
             existingDelivery.setDeliveryAddress(deliveryAddress);
             existingDelivery.setDeliveryDate(orderInfoVO.getDeliveryInfoVO().getDeliveryDate());
             existingDelivery.setDeliveryMethod(orderInfoVO.getDeliveryInfoVO().getDeliveryMethod());
+            existingDelivery.setDeliveryPerson(orderInfoVO.getDeliveryInfoVO().getDeliveryPerson());
+            existingDelivery.setDescription(orderInfoVO.getDeliveryInfoVO().getDescription());
             existingDelivery.setIsCompleted(orderInfoVO.getDeliveryInfoVO().getIsCompleted());
             // 保存更新的配送信息
             deliveryInfoService.updateById(existingDelivery);
@@ -411,7 +428,7 @@ public class OrderController {
                 orderItem.setProductId(orderItemVO.getProductBasicInfoVO().getProductId());
                 orderItem.setQuantity(orderItemVO.getOrderItemQuantity());
                 orderItem.setUnitPrice(orderItemVO.getProductBasicInfoVO().getProductUnitPrice());
-                orderItem.setTotalPrice(orderItemVO.getOrderItemTotalPrice());
+                orderItem.setTotalPrice(orderItemVO.getProductBasicInfoVO().getProductUnitPrice().multiply(BigDecimal.valueOf(orderItemVO.getOrderItemQuantity())));
                 // 查找该用户是否已有该配送地址
                 QueryWrapper<CustomerFavoriteGoodsInfo> goodsQuery = new QueryWrapper<>();
                 goodsQuery.eq("customer_id", customerId).eq("product_id", orderItemVO.getProductBasicInfoVO().getProductId());
