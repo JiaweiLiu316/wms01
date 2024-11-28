@@ -23,7 +23,7 @@ spring:
 
 logging:
   level:
-    root: INFO                             # 设置日志级别
+    root: INFO                         # 设置日志级别
     org.springframework: WARN              # 设置 Spring 相关日志级别
 
 server:

@@ -31,7 +31,7 @@ public class OrderInfo {
         private String shippingAddress;
 
         // 订单状态
-        private Integer status;
+        private Boolean status;
 
         // 下单时间
         private String createdTime;

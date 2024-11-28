@@ -25,7 +25,7 @@ public class OrderInfoVO {
     private List<OrderItemVO> orderItemVOList;
 
     // 订单状态
-    private Integer orderStatus;
+    private Boolean orderStatus;
 
     // 下单时间
     private String orderCreatedTime;

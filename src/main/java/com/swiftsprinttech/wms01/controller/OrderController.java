@@ -61,16 +61,17 @@ public class OrderController {
         // 构建分页查询条件
         Page<OrderInfo> orderPage = new Page<>(page, size);
         QueryWrapper<OrderInfo> queryWrapper = new QueryWrapper<>();
-        // 优先排序：状态为 false 的优先
         queryWrapper.orderByAsc("status")
-                // 次要排序：创建时间降序
                 .orderByDesc("created_time");
 
         // 分页查询订单实体
         Page<OrderInfo> orderInfoPage = orderInfoService.page(orderPage, queryWrapper);
-        if(orderInfoPage == null){
+
+        // 判断查询结果是否为空
+        if (orderInfoPage.getRecords().isEmpty()) {
             return Result.success("暂无数据！");
         }
+
         // 转换为 VO 对象
         List<OrderInfoVO> orderInfoVOList = orderInfoPage.getRecords().stream().map(orderInfo -> {
             OrderInfoVO orderInfoVO = new OrderInfoVO();
@@ -80,18 +81,16 @@ public class OrderController {
 
             // 查询并设置用户信息
             CustomerInfoVO customerInfoVO = customerInfoService.getCustomerInfoById(orderInfo.getCustomerId());
-            customerInfoVO.setShippingAddress(orderInfo.getShippingAddress());
-            orderInfoVO.setCustomerInfoVO(customerInfoVO);
+            if (customerInfoVO != null) {
+                customerInfoVO.setShippingAddress(orderInfo.getShippingAddress());
+                orderInfoVO.setCustomerInfoVO(customerInfoVO);
+            } else {
+                // 如果找不到用户信息，设置默认的 CustomerInfoVO 或者不设置
+                // 这里我们选择跳过设置，或者可以设置一个默认值
+                orderInfoVO.setCustomerInfoVO(new CustomerInfoVO());
+            }
 
-            // 查询并设置交付信息
-            DeliveryInfoVO deliveryInfoVO = deliveryInfoService.getDeliveryInfoById(orderInfo.getDeliveryId());
-            orderInfoVO.setDeliveryInfoVO(deliveryInfoVO);
-
-            // 查询并设置付款信息
-            PaymentInfoVO paymentInfoVO = paymentInfoService.getPaymentInfoById(orderInfo.getPaymentId());
-            orderInfoVO.setPaymentInfoVO(paymentInfoVO);
-
-            // 查询并设置订单项
+            // 处理其他信息（交付、付款、订单项等）
             List<OrderItemVO> orderItemVOList = orderItemService.getOrderItemsByOrderId(orderInfo.getId()).stream().map(orderItem -> {
                 OrderItemVO orderItemVO = new OrderItemVO();
                 orderItemVO.setOrderItemId(orderItem.getOrderItemId());
@@ -99,7 +98,6 @@ public class OrderController {
                 orderItemVO.setOrderItemQuantity(orderItem.getOrderItemQuantity());
                 orderItemVO.setOrderItemTotalPrice(orderItem.getOrderItemTotalPrice());
 
-                // 查询并设置商品基本信息
                 ProductBasicInfoVO productBasicInfoVO = productInfoService.getProductBasicInfoById(orderItem.getProductBasicInfoVO().getProductId());
                 orderItemVO.setProductBasicInfoVO(productBasicInfoVO);
 
@@ -151,11 +149,13 @@ public class OrderController {
 //            存在则更新复购金额
             customerInfoService.updateById(existingCustomer);
         } else {
-            customerId = UUID.randomUUID().toString();
+            customerId = IdGenerator.generateId();
             // 如果用户不存在，则新建用户信息
+            customerInfo.setId(customerId);
             customerInfo.setName(orderInfoVO.getCustomerInfoVO().getCustomerName());
             customerInfo.setPhoneNumber(orderInfoVO.getCustomerInfoVO().getPhoneNumber());
             customerInfo.setRepurchaseAmount(orderInfoVO.getPaymentInfoVO().getAmountDue());
+            customerInfo.setShippingAddress(orderInfoVO.getCustomerInfoVO().getShippingAddress());
             customerInfoService.save(customerInfo);
         }
 
@@ -200,7 +200,8 @@ public class OrderController {
             orderItem.setProductId(orderItemVO.getProductBasicInfoVO().getProductId());
             orderItem.setQuantity(orderItemVO.getOrderItemQuantity());
             orderItem.setUnitPrice(orderItemVO.getProductBasicInfoVO().getProductUnitPrice());
-            orderItem.setTotalPrice(orderItemVO.getOrderItemTotalPrice());
+            BigDecimal totalPrice = orderItemVO.getProductBasicInfoVO().getProductUnitPrice().multiply(new BigDecimal(orderItemVO.getOrderItemQuantity()));
+            orderItem.setTotalPrice(totalPrice);
             orderItemService.save(orderItem);
         }
 
@@ -212,6 +213,11 @@ public class OrderController {
         paymentInfo.setPaymentDate(orderInfoVO.getPaymentInfoVO().getPaymentDate());
         paymentInfo.setAmountDue(orderInfoVO.getPaymentInfoVO().getAmountDue());
         paymentInfo.setAmountPaid(orderInfoVO.getPaymentInfoVO().getAmountPaid());
+        if (orderInfoVO.getPaymentInfoVO().getAmountDue().compareTo(orderInfoVO.getPaymentInfoVO().getAmountPaid()) == 0){
+            orderInfoVO.getPaymentInfoVO().setIsCompleted(true);
+        }else {
+            orderInfoVO.getPaymentInfoVO().setIsCompleted(false);
+        }
         paymentInfo.setIsCompleted(orderInfoVO.getPaymentInfoVO().getIsCompleted());
         paymentInfoService.save(paymentInfo);
 
@@ -233,6 +239,11 @@ public class OrderController {
         orderInfo.setPaymentId(paymentId);
         orderInfo.setShippingAddress(orderInfoVO.getDeliveryInfoVO().getDeliveryAddress());
         orderInfo.setProductIds(String.valueOf(productIdList));
+        if (orderInfoVO.getPaymentInfoVO().getIsCompleted() && orderInfoVO.getDeliveryInfoVO().getIsCompleted()){
+            orderInfoVO.setOrderStatus(true);
+        }else {
+            orderInfoVO.setOrderStatus(false);
+        }
         orderInfo.setStatus(orderInfoVO.getOrderStatus());
         orderInfo.setCreatedTime(TimeUtil.format(orderCreatedTime));
         orderInfoService.save(orderInfo);

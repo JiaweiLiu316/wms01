@@ -12,6 +12,7 @@ import com.swiftsprinttech.wms01.domain.vo.ProductIdAndNameVO;
 import com.swiftsprinttech.wms01.service.ICustomerAddressInfoService;
 import com.swiftsprinttech.wms01.service.ICustomerFavoriteGoodsInfoService;
 import com.swiftsprinttech.wms01.service.ICustomerInfoService;
+import com.swiftsprinttech.wms01.utils.IdGenerator;
 import com.swiftsprinttech.wms01.utils.Result;
 import com.swiftsprinttech.wms01.utils.ResultUtil;
 import org.springframework.beans.BeanUtils;
@@ -38,6 +39,7 @@ public class CustomerInfoController {
     @PostMapping("/add")
     public ResponseEntity<Result<Boolean>> addProduct(@RequestBody CustomerInfoVO customerInfoVO) {
         CustomerInfo customerInfo = new CustomerInfo();
+        customerInfo.setId(IdGenerator.generateId());
         BeanUtils.copyProperties(customerInfoVO, customerInfo);
         CustomerInfo one = customerInfoService.getOne(new LambdaQueryWrapper<CustomerInfo>().eq(CustomerInfo::getPhoneNumber, customerInfoVO.getPhoneNumber()));
         if (one != null){
