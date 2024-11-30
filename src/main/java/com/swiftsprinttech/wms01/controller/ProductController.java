@@ -25,34 +25,29 @@ public class ProductController {
     @Autowired
     private IProductInfoService productInfoService;
 
+
     @GetMapping("/pageList")
     public Result<Page<ProductInfo>> getAllProducts(
             @RequestParam(value = "page", defaultValue = "1") Integer page,  // 页码，默认为1
             @RequestParam(value = "size", defaultValue = "10") Integer size,  // 每页数量，默认为10
-            @RequestParam(value = "id", required = false) String id,
-            @RequestParam(value = "name", required = false) String name,  // 商品名称（模糊查询）
-            @RequestParam(value = "category", required = false) String category,  // 商品分类（模糊查询）
-            @RequestParam(value = "region", required = false) String region  // 商品地区（模糊查询）
+            @RequestParam(value = "search", required = false) String search  // 模糊查询字段
     ) {
-        try{
+        try {
             // 创建分页对象
             Page<ProductInfo> pageRequest = new Page<>(page, size);
 
             // 创建 Lambda 查询构造器
             LambdaQueryWrapper<ProductInfo> queryWrapper = new LambdaQueryWrapper<>();
 
-            // 模糊查询条件
-            if (id != null && !id.isEmpty()) {
-                queryWrapper.like(ProductInfo::getId, id);
-            }
-            if (name != null && !name.isEmpty()) {
-                queryWrapper.like(ProductInfo::getName, name);
-            }
-            if (category != null && !category.isEmpty()) {
-                queryWrapper.like(ProductInfo::getCategory, category);
-            }
-            if (region != null && !region.isEmpty()) {
-                queryWrapper.like(ProductInfo::getRegion, region);
+            // 如果 search 参数不为空，进行模糊查询
+            if (search != null && !search.isEmpty()) {
+                queryWrapper.like(ProductInfo::getId, search)
+                        .or().like(ProductInfo::getName, search)
+                        .or().like(ProductInfo::getStock, search)
+                        .or().like(ProductInfo::getPrice, search)
+                        .or().like(ProductInfo::getDescription, search)
+                        .or().like(ProductInfo::getCategory, search)
+                        .or().like(ProductInfo::getRegion, search);
             }
 
             // 执行查询并返回分页结果
@@ -60,13 +55,13 @@ public class ProductController {
 
             // 返回成功的响应
             return Result.success("查询成功", result);
-        }catch (Exception e){
+        } catch (Exception e) {
             System.out.println(e.getMessage());
-            // 返回成功的响应
+            // 返回错误的响应
             return Result.error("出错");
         }
-
     }
+
     // 查询所有商品列表
     @GetMapping("/list")
     public Result<List<ProductInfo>> listAllProducts() {

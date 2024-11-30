@@ -8,10 +8,7 @@ import com.swiftsprinttech.wms01.domain.vo.*;
 import com.swiftsprinttech.wms01.service.*;
 import com.swiftsprinttech.wms01.utils.IdGenerator;
 import com.swiftsprinttech.wms01.utils.Result;
-import com.swiftsprinttech.wms01.utils.ResultUtil;
-import jakarta.websocket.server.PathParam;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +16,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -57,7 +53,8 @@ public class OrderController {
     @GetMapping("/getAllOrder")
     public Result<Page<OrderInfoVO>> getAllOrder(
             @RequestParam(value = "page") Integer page,
-            @RequestParam(value = "size") Integer size
+            @RequestParam(value = "size") Integer size,
+            @RequestParam(value = "search", required = false) String search
     ) {
         // 构建分页查询条件
         Page<OrderInfo> orderPage = new Page<>(page, size);
@@ -114,6 +111,37 @@ public class OrderController {
 
             return orderInfoVO;
         }).collect(Collectors.toList());
+        if (search != null && !search.isEmpty()) {
+            // 使用 filter 进行模糊查询
+            orderInfoVOList = orderInfoVOList.stream()
+                    .filter(orderInfoVO -> {
+                        // 判断是否任意一个字段包含搜索关键词
+                        boolean customerMatch = orderInfoVO.getCustomerInfoVO() != null
+                                && (orderInfoVO.getCustomerInfoVO().getCustomerName() != null
+                                && orderInfoVO.getCustomerInfoVO().getCustomerName().contains(search)
+                                || orderInfoVO.getCustomerInfoVO().getPhoneNumber() != null
+                                && orderInfoVO.getCustomerInfoVO().getPhoneNumber().contains(search));
+
+                        boolean deliveryAddressMatch = orderInfoVO.getDeliveryInfoVO() != null
+                                && orderInfoVO.getDeliveryInfoVO().getDeliveryAddress() != null
+                                && orderInfoVO.getDeliveryInfoVO().getDeliveryAddress().contains(search);
+
+                        boolean productMatch = orderInfoVO.getOrderItemVOList() != null
+                                && orderInfoVO.getOrderItemVOList().stream().anyMatch(orderItemVO ->
+                                orderItemVO.getProductBasicInfoVO() != null
+                                        && orderItemVO.getProductBasicInfoVO().getProductName() != null
+                                        && orderItemVO.getProductBasicInfoVO().getProductName().contains(search)
+                        );
+
+                        boolean deliveryMethodMatch = orderInfoVO.getDeliveryInfoVO() != null
+                                && orderInfoVO.getDeliveryInfoVO().getDeliveryMethod() != null
+                                && orderInfoVO.getDeliveryInfoVO().getDeliveryMethod().contains(search);
+
+                        // 只要任意条件匹配，即返回该订单
+                        return customerMatch || deliveryAddressMatch || productMatch || deliveryMethodMatch;
+                    })
+                    .collect(Collectors.toList());  // 重新收集匹配到的结果
+        }
 
         // 构建分页 VO
         Page<OrderInfoVO> orderInfoVOPage = new Page<>();

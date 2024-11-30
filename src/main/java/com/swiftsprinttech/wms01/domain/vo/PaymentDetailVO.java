@@ -3,19 +3,26 @@ package com.swiftsprinttech.wms01.domain.vo;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * @author jiawe
  */
 @Data
-public class PaymentInfoVO {
+public class PaymentDetailVO {
 
     private String paymentId;
 
     // 订单ID
     private String orderId;
 
+    private String customerName;
+
+    private String phoneNumber;
+
+    private String productsList;
+//    商品数量
+    private Integer productsAmount;
     /* 付款方式 */
     private String paymentMethod;
 
